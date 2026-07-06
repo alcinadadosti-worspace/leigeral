@@ -1,0 +1,59 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════
+// Regras do Firestore — Aceite LGPD · coleção "aceites_marketing"
+// ═══════════════════════════════════════════════════════════════════
+// Append-only: qualquer um CRIA um aceite; ninguém LÊ, EDITA ou APAGA
+// pelo cliente. A base de telefones não vaza — a consulta é só no
+// console do Firestore. Registros "revogado" são criados manualmente
+// no console (o Admin SDK ignora estas rules), por isso o cliente só
+// pode gravar "aceito" ou "recusado".
+//
+// ATENÇÃO: este arquivo foi reconstruído a partir da especificação
+// documentada e do objeto `registro` do index.html. Se você já tiver
+// um firestore.rules oficial em outra cópia do repo, use aquele.
+// Ao adicionar campo novo no JS, inclua-o no hasOnly abaixo, senão o
+// Firestore rejeita o create em produção.
+//
+// Aplicar: console do Firebase -> Firestore -> aba Regras -> colar ->
+// Publicar.  (Ou: firebase deploy --only firestore:rules)
+// ═══════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /aceites_marketing/{doc} {
+
+      allow create: if
+        // whitelist — só estes campos podem existir no documento
+        request.resource.data.keys().hasOnly([
+          'telefone', 'nome', 'loja', 'resposta', 'textoConsentimento',
+          'versaoTexto', 'origem', 'urlOrigem', 'userAgent', 'idioma',
+          'ip', 'registradoEm'
+        ])
+        // obrigatórios
+        && request.resource.data.keys().hasAll([
+          'telefone', 'resposta', 'textoConsentimento',
+          'versaoTexto', 'origem', 'registradoEm'
+        ])
+        // integridade dos campos
+        && request.resource.data.telefone is string
+        && request.resource.data.telefone.matches('^55[0-9]{10,11}$')
+        && request.resource.data.resposta in ['aceito', 'recusado']
+        && request.resource.data.textoConsentimento is string
+        && request.resource.data.textoConsentimento.size() <= 1000
+        && request.resource.data.versaoTexto is string
+        && request.resource.data.origem == 'pagina-web'
+        // timestamp inforjável, carimbado pelo servidor do Google
+        && request.resource.data.registradoEm == request.time;
+
+      // leitura / edição / exclusão pelo cliente: proibidas
+      allow read, update, delete: if false;
+    }
+
+    // qualquer outra coleção: bloqueada
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

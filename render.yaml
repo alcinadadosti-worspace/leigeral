@@ -1,0 +1,23 @@
+# Render Blueprint — Static Site do Aceite LGPD (Grupo Alcina Maria)
+#
+# Deploy via Blueprint:  Render -> New -> Blueprint -> conectar este repositorio.
+# Deploy manual (sem este arquivo):  New -> Static Site -> Build Command vazio ->
+#   Publish Directory ".".  NUNCA escolher "Web Service": o free tier hiberna e o
+#   cold start de ~1 min mataria a UX de quem abre o link pelo WhatsApp.
+services:
+  - name: aceite-lgpd
+    type: web
+    runtime: static
+    staticPublishPath: ./
+    # Sem etapa de build: um unico index.html, HTML/CSS/JS puro.
+    headers:
+      # A pagina de consentimento nao deve ser embutida em iframes (anti-clickjacking).
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin

@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  ACEITE DE COMUNICAÇÕES · CP ALCINA MARIA
+  Página estática de opt-in (LGPD) → grava no Firestore
+  ═══════════════════════════════════════════════════════════════════
+
+  COMO COLOCAR NO AR (3 passos):
+
+  1. FIREBASE
+     console.firebase.google.com → criar projeto → Firestore Database
+     (modo produção, região southamerica-east1) → Configurações do
+     projeto → "Adicionar app" (Web) → copiar o objeto firebaseConfig
+     e colar no bloco CONFIG do script, no fim deste arquivo.
+
+  2. REGRAS DO FIRESTORE
+     Colar as rules que acompanham este arquivo (aba Regras do
+     Firestore). Elas deixam a coleção "aceites_marketing" como
+     append-only: qualquer um cria, ninguém lê/edita/apaga.
+
+  3. RENDER
+     Sobe este arquivo num repositório GitHub → render.com →
+     New → STATIC SITE (não Web Service!) → conecta o repo →
+     Build command: (vazio) → Publish directory: .
+     Static site no plano free não tem cold start.
+
+  LINK DE ENVIO (sempre personalizado, um por cliente):
+     https://SEU-APP.onrender.com/?t=5582999998888&n=Maria
+     O telefone vem do link — o cliente não digita nada,
+     só toca em sim ou não. Sem o parâmetro t, a página
+     orienta a abrir pelo link da mensagem.
+     Opcional: &l=penedo grava a loja de origem no
+     registro (útil pra segmentar por unidade depois).
+
+  BRANDING:
+     Paleta e conceito do manual da ArthDesignn (07/2024).
+     Mansory e Futura Md BT não têm licença web gratuita — usei
+     Marcellus e Jost como equivalentes. Se você tiver os arquivos
+     das fontes licenciadas, troque via @font-face.
+     O monograma AM é o vetor oficial, extraído direto do PDF
+     do manual (CorelDRAW → SVG), com o degradê dourado da marca.
+  ═══════════════════════════════════════════════════════════════════
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#70967F">
+<meta name="robots" content="noindex">
+<title>Novidades e cupons · Grupo Alcina Maria</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%2370967F"/><text x="32" y="42" font-family="Georgia,serif" font-size="26" fill="%23E9D5A8" text-anchor="middle" letter-spacing="1">AM</text></svg>'>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    /* Paleta do manual de identidade */
+    --verde:        #70967F;   /* cor principal da marca */
+    --verde-700:    #5C8069;   /* botão primário (contraste melhor) */
+    --verde-900:    #3E5A4B;   /* hover / títulos escuros */
+    --verde-050:    #EEF4F0;   /* fundos suaves */
+    --dour-claro:   #E9D5A8;
+    --dour-medio:   #C9A876;
+    --dour-escuro:  #A9803F;
+    --branco:       #FFFFFF;
+    --tinta:        #2E3A33;
+    --tinta-suave:  #5D6B63;
+    --linha:        #D7E0DA;
+    --erro:         #A9502C;
+
+    --f-titulo: 'Marcellus', Georgia, serif;
+    --f-texto:  'Jost', 'Segoe UI', sans-serif;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html,body{ min-height:100%; }
+
+  body{
+    font-family: var(--f-texto);
+    color: var(--tinta);
+    background:
+      radial-gradient(130% 90% at 50% -10%, #82A791 0%, var(--verde) 48%, #5F8571 100%);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    min-height:100dvh;
+    padding: 0 20px calc(28px + env(safe-area-inset-bottom));
+  }
+
+  /* ── Cabeçalho verde: monograma dourado + wordmark ─────────────── */
+  header{
+    text-align:center;
+    padding: 44px 8px 30px;
+    animation: surgir .7s ease both;
+  }
+
+  .monograma{ width:96px; height:auto; display:block; margin:0 auto 14px; }
+
+  .wordmark{
+    font-family: var(--f-titulo);
+    font-size: 17px;
+    letter-spacing: .38em;
+    text-indent: .38em;      /* compensa o espaçamento da última letra */
+    color: var(--branco);
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
+  .filete-ouro{
+    width:92px; height:2px; border:0;
+    margin: 14px auto 0;
+    background: linear-gradient(90deg, transparent, var(--dour-medio) 30%, var(--dour-claro) 55%, var(--dour-medio) 75%, transparent);
+  }
+
+  /* ── Cartão branco ─────────────────────────────────────────────── */
+  .cartao{
+    background: var(--branco);
+    width:100%;
+    max-width: 470px;
+    border-radius: 22px;
+    box-shadow: 0 24px 60px rgba(31,48,39,.28);
+    padding: 32px 26px 26px;
+    animation: surgir .7s .12s ease both;
+  }
+
+  h1{
+    font-family: var(--f-titulo);
+    font-weight: 400;
+    font-size: clamp(23px, 6vw, 27px);
+    line-height: 1.25;
+    color: var(--verde-900);
+    text-align:center;
+  }
+
+  .intro{
+    margin-top: 12px;
+    font-size: 15.5px;
+    font-weight: 300;
+    line-height: 1.65;
+    color: var(--tinta-suave);
+    text-align:center;
+  }
+
+
+  /* ── Texto do consentimento ────────────────────────────────────── */
+  .consentimento{
+    margin-top: 22px;
+    background: var(--verde-050);
+    border-left: 3px solid var(--dour-medio);
+    border-radius: 0 14px 14px 0;
+    padding: 14px 16px;
+    font-size: 13.5px;
+    font-weight: 300;
+    line-height: 1.65;
+    color: var(--tinta-suave);
+  }
+
+  /* ── Botões ────────────────────────────────────────────────────── */
+  .acoes{ margin-top: 22px; display:flex; flex-direction:column; gap:10px; }
+
+  .btn{
+    width:100%;
+    padding: 15px 18px;
+    border-radius: 13px;
+    font: 500 16px var(--f-texto);
+    letter-spacing: .02em;
+    cursor: pointer;
+    transition: background .18s, border-color .18s, color .18s, transform .12s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn:active{ transform: scale(.985); }
+
+  .btn-primario{
+    background: var(--verde-700);
+    color: var(--branco);
+    border: 0;
+  }
+  .btn-primario:hover{ background: var(--verde-900); }
+
+  .btn-secundario{
+    background: transparent;
+    color: var(--tinta-suave);
+    border: 1px solid var(--linha);
+  }
+  .btn-secundario:hover{ border-color: var(--verde); color: var(--verde-900); }
+
+  .btn[disabled]{ opacity:.55; cursor:default; transform:none; }
+
+  .btn.enviando::after{
+    content:"";
+    position:absolute; right:16px; top:50%;
+    width:16px; height:16px;
+    margin-top:-8px;
+    border:2px solid currentColor;
+    border-right-color: transparent;
+    border-radius:50%;
+    animation: girar .7s linear infinite;
+  }
+
+  .letra-miuda{
+    margin-top: 16px;
+    font-size: 12px;
+    font-weight: 300;
+    line-height: 1.6;
+    color: var(--tinta-suave);
+    text-align:center;
+  }
+
+  /* ── Avisos gerais ─────────────────────────────────────────────── */
+  .banner{
+    margin-top: 18px;
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  .banner-info{ background:#F6F2E7; border:1px solid #E5D9BC; color:#6E5B33; }
+  .banner-erro{ background:#F8ECE6; border:1px solid #E4C4B2; color:var(--erro); }
+
+  /* ── Tela de confirmação ───────────────────────────────────────── */
+  .sucesso{ text-align:center; padding: 8px 0 4px; animation: surgir .5s ease both; }
+
+  .selo{
+    width:76px; height:76px;
+    margin: 6px auto 18px;
+    display:block;
+  }
+  .selo .anel{
+    fill:none; stroke:url(#gradSelo); stroke-width:3;
+    stroke-dasharray: 226; stroke-dashoffset: 226;
+    animation: tracar 1s .1s ease forwards;
+  }
+  .selo .checa{
+    fill:none; stroke:url(#gradSelo); stroke-width:4;
+    stroke-linecap:round; stroke-linejoin:round;
+    stroke-dasharray: 48; stroke-dashoffset: 48;
+    animation: tracar .5s .8s ease forwards;
+  }
+
+  .sucesso h2{
+    font-family: var(--f-titulo);
+    font-weight: 400;
+    font-size: 24px;
+    color: var(--verde-900);
+  }
+  .sucesso p{
+    margin-top: 10px;
+    font-size: 15px;
+    font-weight: 300;
+    line-height: 1.65;
+    color: var(--tinta-suave);
+  }
+  .protocolo{
+    display:inline-block;
+    margin-top: 16px;
+    background: var(--verde-050);
+    border: 1px dashed var(--dour-medio);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    color: var(--verde-900);
+    letter-spacing: .04em;
+  }
+
+  footer{
+    margin-top: 22px;
+    font-size: 11.5px;
+    font-weight: 300;
+    letter-spacing: .06em;
+    color: rgba(255,255,255,.82);
+    text-align:center;
+    line-height: 1.7;
+  }
+  footer a{ color:#fff; text-decoration:underline; text-underline-offset:2px; }
+
+  /* ── Link discreto pro Aviso de Privacidade ─────────────────────── */
+  .link-aviso{
+    display:inline-block;
+    margin-top: 12px;
+    background:none; border:0; padding:0;
+    font: 300 12.5px var(--f-texto);
+    color: var(--verde-900);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
+  /* ── Aviso de Privacidade · modal (LGPD art. 9º / 18 / 41) ──────── */
+  dialog.aviso{
+    width: min(92vw, 460px);
+    max-height: 86dvh;
+    border: 0;
+    border-radius: 18px;
+    padding: 0;
+    color: var(--tinta);
+    box-shadow: 0 24px 60px rgba(31,48,39,.35);
+  }
+  dialog.aviso:not([open]){ display:none; }   /* segurança p/ webview antigo */
+  dialog.aviso::backdrop{ background: rgba(31,48,39,.55); }
+  .aviso-corpo{ padding: 24px 22px; overflow-y:auto; max-height: 86dvh; }
+  .aviso-corpo h2{
+    font-family: var(--f-titulo);
+    font-weight: 400;
+    font-size: 21px;
+    color: var(--verde-900);
+    text-align:center;
+    margin-bottom: 4px;
+  }
+  .aviso-corpo h3{
+    font-family: var(--f-texto);
+    font-weight: 600;
+    font-size: 12.5px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--verde-700);
+    margin-top: 18px;
+  }
+  .aviso-corpo p{
+    font-size: 13.5px;
+    font-weight: 300;
+    line-height: 1.65;
+    color: var(--tinta-suave);
+    margin-top: 6px;
+  }
+  .aviso-corpo a{ color: var(--verde-700); }
+  .aviso-corpo ul{ margin: 6px 0 0 18px; }
+  .aviso-corpo li{
+    font-size: 13.5px;
+    font-weight: 300;
+    line-height: 1.6;
+    color: var(--tinta-suave);
+    margin-top: 4px;
+  }
+  .aviso-fechar{
+    display:block;
+    width:100%;
+    margin-top: 20px;
+    padding: 13px;
+    border:0;
+    border-radius: 12px;
+    background: var(--verde-700);
+    color:#fff;
+    font: 500 15px var(--f-texto);
+    cursor:pointer;
+  }
+  .aviso-fechar:hover{ background: var(--verde-900); }
+
+  /* ── Microanimações ────────────────────────────────────────────── */
+  .onda{
+    position:absolute;
+    border-radius:50%;
+    background: radial-gradient(circle, rgba(239,221,180,.9) 0%, rgba(201,168,118,.35) 45%, transparent 72%);
+    transform: translate(-50%,-50%) scale(0);
+    animation: ondular .55s ease-out forwards;
+    pointer-events:none;
+  }
+  @keyframes ondular{
+    to{ transform: translate(-50%,-50%) scale(1); opacity:0; }
+  }
+
+  .saindo{ animation: sair .36s ease forwards; }
+  @keyframes sair{
+    to{ opacity:0; transform: translateY(-12px); }
+  }
+
+  [hidden]{ display:none !important; }
+
+  @keyframes surgir{ from{ opacity:0; transform: translateY(14px);} to{ opacity:1; transform:none;} }
+  @keyframes girar{ to{ transform: rotate(360deg);} }
+  @keyframes tracar{ to{ stroke-dashoffset: 0; } }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation: none !important; transition: none !important; }
+    .selo .anel, .selo .checa{ stroke-dashoffset: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <!-- ══ MONOGRAMA OFICIAL · vetor extraído do manual ArthDesignn (07/2024) ══ -->
+  <svg class="monograma" viewBox="0 0 89.8 85.8" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Monograma AM · Grupo Alcina Maria">
+    <defs>
+      <linearGradient id="gradOuro" x1="0" y1="0" x2="90" y2="86" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#EFDDB4"/><stop offset=".5" stop-color="#C9A876"/><stop offset="1" stop-color="#A9803F"/>
+    </linearGradient>
+      <linearGradient id="brilho" x1="-0.9" y1="0" x2="-0.4" y2="0.35">
+        <stop offset="0"  stop-color="#FFF6DF" stop-opacity="0"/>
+        <stop offset=".5" stop-color="#FFF6DF" stop-opacity=".9"/>
+        <stop offset="1"  stop-color="#FFF6DF" stop-opacity="0"/>
+        <animate attributeName="x1" begin="indefinite" dur="0.85s" from="-0.9" to="1.5"
+                 calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+        <animate attributeName="x2" begin="indefinite" dur="0.85s" from="-0.4" to="2"
+                 calcMode="spline" keyTimes="0;1" keySplines="0.3 0 0.2 1"/>
+      </linearGradient>
+      <path id="marcaAM" fill-rule="evenodd" d="M 62.29,79.68 L 84.97,28.89 L 88.74,28.89 L 88.75,84.83 L 84.87,84.83 L 84.87,33.16 L 61.87,84.83 L 60.44,84.83 L 60.38,84.64 C 57.66,76.38 54.94,68.11 52.08,59.89 C 50.03,54.00 47.92,48.06 45.47,42.33 C 44.83,40.85 44.11,39.41 43.32,38.01 L 24.94,84.83 L 23.14,84.83 L 42.28,36.23 C 40.64,32.39 37.75,29.36 34.26,27.32 L 19.46,62.36 L 19.46,62.36 L 19.32,62.72 L 18.95,62.66 C 9.23,60.98 1.00,53.21 1.00,42.98 C 1.00,31.12 11.79,22.94 23.07,22.94 C 26.39,22.94 30.05,23.73 33.42,25.15 L 42.71,3.14 L 42.69,3.13 L 43.58,1.0 L 46.19,1.0 L 65.73,62.36 L 61.61,62.36 L 43.53,5.38 L 34.89,25.82 C 37.55,27.12 39.96,28.82 41.78,30.83 C 46.16,35.67 49.23,42.91 51.58,48.92 C 53.38,53.52 55.01,58.19 56.60,62.85 C 58.52,68.46 60.39,74.07 62.29,79.68 M 32.83,26.55 C 29.82,25.09 26.45,24.31 23.07,24.31 C 12.55,24.31 2.36,31.89 2.36,42.98 C 2.36,52.21 9.58,59.25 18.24,61.12 L 32.83,26.55"/>
+    </defs>
+    <use href="#marcaAM" fill="url(#gradOuro)"/>
+    <use href="#marcaAM" fill="url(#brilho)"/>
+  </svg>
+  <div class="wordmark">Grupo Alcina Maria</div>
+  <hr class="filete-ouro">
+</header>
+
+<main class="cartao">
+
+  <!-- ═════════ TELA 1 · FORMULÁRIO ═════════ -->
+  <section id="telaForm">
+    <h1>Quer receber nossas novidades?</h1>
+    <p class="intro">A gente adoraria te enviar pelo WhatsApp as novidades, promoções e cupons exclusivos da loja. Como a LGPD — a Lei Geral de Proteção de Dados — exige o seu consentimento antes de qualquer envio, precisamos deste aceite. É um toque só.</p>
+
+    <div id="avisoAnterior" class="banner banner-info" hidden></div>
+
+
+    <div class="consentimento" id="textoConsentimento"><!-- preenchido via JS: exibido = gravado --></div>
+
+    <div id="avisoErro" class="banner banner-erro" hidden>
+      Não conseguimos registrar agora. Verifica sua conexão e tenta de novo — se continuar, fala com a gente no WhatsApp.
+    </div>
+
+    <div class="acoes">
+      <button type="button" class="btn btn-primario" id="btnAceito">Sim, quero receber</button>
+      <button type="button" class="btn btn-secundario" id="btnRecuso">Não quero receber</button>
+    </div>
+
+    <p class="letra-miuda"><span id="linhaVinculo"></span>Registramos sua escolha com data e hora. Mudou de ideia depois? É só responder <strong>SAIR</strong> no WhatsApp.</p>
+
+    <div style="text-align:center">
+      <button type="button" class="link-aviso" id="linkAvisoForm">Aviso de Privacidade e seus direitos</button>
+    </div>
+  </section>
+
+  <!-- ═════════ TELA 2 · CONFIRMAÇÃO ═════════ -->
+  <section id="telaSucesso" class="sucesso" hidden>
+    <svg class="selo" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="gradSelo" x1="0" y1="0" x2="80" y2="80" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#E9D5A8"/>
+          <stop offset="1" stop-color="#A9803F"/>
+        </linearGradient>
+      </defs>
+      <circle class="anel" cx="40" cy="40" r="36"/>
+      <path class="checa" id="seloCheca" d="M26 41 L36 51 L55 30"/>
+      <path class="checa" id="seloTraco" d="M27 40 L53 40" hidden/>
+    </svg>
+    <h2 id="sucessoTitulo"></h2>
+    <p id="sucessoTexto"></p>
+    <span class="protocolo" id="sucessoProtocolo"></span>
+    <p style="margin-top:18px; font-size:13px;">Pode fechar esta página. 💚</p>
+  </section>
+
+  <!-- ═════════ TELA 3 · LINK SEM IDENTIFICAÇÃO ═════════ -->
+  <section id="telaLinkInvalido" class="sucesso" hidden>
+    <h2>Este aceite é pessoal</h2>
+    <p>Pra vincular a resposta ao seu WhatsApp, abra pelo link que enviamos na nossa mensagem. Se precisar, é só pedir o link de novo por lá. 💚</p>
+  </section>
+
+</main>
+
+<footer>Grupo Alcina Maria<br>CNPJ 14.750.618/0001-83 · Controlador dos dados<br>Encarregado (DPO): <a href="mailto:alcinadadosti@gmail.com">alcinadadosti@gmail.com</a><br>Dúvidas ou solicitações sobre seus dados: fale com a gente no WhatsApp ou veja o <a href="#" id="linkAvisoFooter">Aviso de Privacidade</a>.</footer>
+
+<!-- ═════════ AVISO DE PRIVACIDADE · modal (LGPD art. 9º / 18 / 41) ═════════ -->
+<dialog class="aviso" id="dlgAviso" aria-label="Aviso de Privacidade">
+  <div class="aviso-corpo">
+    <h2>Aviso de Privacidade</h2>
+
+    <h3>Quem trata seus dados</h3>
+    <p><strong>Controlador:</strong> Grupo Alcina Maria — CNPJ 14.750.618/0001-83.<br>
+    <strong>Encarregado (DPO):</strong> <a href="mailto:alcinadadosti@gmail.com">alcinadadosti@gmail.com</a>.</p>
+
+    <h3>Por que tratamos</h3>
+    <p>Para enviar, pelo WhatsApp, novidades, promoções e cupons das nossas lojas. A base legal é o seu <strong>consentimento</strong> (LGPD, art. 7º, I e art. 8º), dado ao tocar em "Sim, quero receber".</p>
+
+    <h3>Quais dados</h3>
+    <p>Seu número de WhatsApp; seu nome e a loja de origem, quando vierem no link; e, como prova do aceite, a data e hora, seu endereço IP, o idioma e informações do seu dispositivo/navegador.</p>
+
+    <h3>Com quem compartilhamos</h3>
+    <p>Os registros ficam no Firebase/Firestore (Google), em servidores no Brasil (São Paulo). Usamos um serviço externo apenas para obter o endereço IP e o Google Fonts para exibir as fontes. Não vendemos nem cedemos seus dados a terceiros para marketing.</p>
+
+    <h3>Por quanto tempo</h3>
+    <!-- ATENÇÃO: confirmar o prazo exato de retenção com o jurídico/advogado. -->
+    <p>Enquanto seu consentimento estiver ativo. Se você revogar, guardamos apenas o registro do aceite e da revogação pelo tempo necessário para comprovar o cumprimento da LGPD.</p>
+
+    <h3>Seus direitos (LGPD, art. 18)</h3>
+    <p>A qualquer momento, você pode:</p>
+    <ul>
+      <li>confirmar que tratamos seus dados e acessá-los;</li>
+      <li>corrigir dados incompletos ou desatualizados;</li>
+      <li>pedir anonimização, bloqueio ou eliminação;</li>
+      <li>pedir a portabilidade dos dados;</li>
+      <li>revogar o consentimento e pedir a eliminação dos dados tratados com base nele;</li>
+      <li>saber com quem compartilhamos seus dados.</li>
+    </ul>
+
+    <h3>Como exercer</h3>
+    <p>Responda <strong>SAIR</strong> no WhatsApp para revogar o consentimento, ou fale com nosso Encarregado em <a href="mailto:alcinadadosti@gmail.com">alcinadadosti@gmail.com</a>.</p>
+
+    <button type="button" class="aviso-fechar" id="btnFecharAviso">Fechar</button>
+  </div>
+</dialog>
+
+<noscript><div style="background:#fff;border-radius:12px;padding:16px;margin-top:16px;max-width:470px;text-align:center">Esta página precisa de JavaScript habilitado para registrar sua resposta.</div></noscript>
+
+<script type="module">
+  /* ═══════════════════ CONFIG ═══════════════════
+     Cole aqui o objeto que o console do Firebase te
+     dá em: Configurações do projeto → Seus apps (Web).
+     A apiKey do Firebase é pública por design — a
+     segurança fica nas rules do Firestore.
+     Sem uma config válida aqui a página NÃO grava nada:
+     ao responder, o cliente vê o aviso de erro. Troque
+     os placeholders abaixo pelos valores reais do projeto. */
+  const firebaseConfig = {
+    apiKey:            "COLE_AQUI",
+    authDomain:        "SEU-PROJETO.firebaseapp.com",
+    projectId:         "SEU-PROJETO",
+    storageBucket:     "SEU-PROJETO.firebasestorage.app",
+    messagingSenderId: "000000000000",
+    appId:             "1:000000000000:web:xxxxxxxxxxxxxxxx"
+  };
+
+  /* App Check (opcional, recomendado): cole aqui a site key do reCAPTCHA v3
+     para proteger o endpoint público de escrita contra requisições forjadas.
+     Deixe o placeholder para pular — a gravação funciona igual sem ele. */
+  const RECAPTCHA_SITE_KEY = "COLE_SITE_KEY_RECAPTCHA";
+
+  /* Texto jurídico do aceite. O que aparece na tela é
+     exatamente o que vai gravado no Firestore — se
+     alterar o texto, mude também a versão abaixo.    */
+  /* ATENÇÃO: confira a razão social exata no Cartão CNPJ e ajuste
+     aqui e no <footer> se for diferente de "Grupo Alcina Maria".   */
+  const TEXTO_CONSENTIMENTO =
+    "Autorizo o Grupo Alcina Maria (CNPJ 14.750.618/0001-83), responsável pelas " +
+    "lojas CP Alcina Maria, a me enviar pelo WhatsApp comunicações sobre novidades, " +
+    "promoções e cupons exclusivos de suas lojas. Sei que posso cancelar quando " +
+    "quiser, respondendo SAIR a qualquer momento, e que meus dados serão usados " +
+    "apenas para essa finalidade, conforme a Lei nº 13.709/2018 (LGPD).";
+  const VERSAO_TEXTO = "v2-2026-07";
+  /* ══════════════════════════════════════════════ */
+
+  /* Carrega o SDK do Firebase por import() dinâmico dentro de try/catch:
+     num ambiente com CSP restrito que bloqueie o gstatic, a página segue
+     de pé e mostra o aviso de erro ao responder, em vez de quebrar.   */
+  let fb = null;
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+    const { getFirestore, collection, addDoc, serverTimestamp } =
+      await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+    const app = initializeApp(firebaseConfig);
+
+    /* App Check: só ativa se a site key foi preenchida. Para valer, ligue
+       também o App Check (com enforcement) no console do Firebase.        */
+    if (RECAPTCHA_SITE_KEY && RECAPTCHA_SITE_KEY !== "COLE_SITE_KEY_RECAPTCHA") {
+      try {
+        const { initializeAppCheck, ReCaptchaV3Provider } =
+          await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app-check.js");
+        initializeAppCheck(app, {
+          provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+          isTokenAutoRefreshEnabled: true
+        });
+      } catch (e) {
+        console.error("App Check não inicializou:", e);
+      }
+    }
+
+    fb = { db: getFirestore(app), collection, addDoc, serverTimestamp };
+  } catch (e) {
+    console.error("SDK do Firebase não carregou:", e);
+  }
+
+  const $ = (id) => document.getElementById(id);
+  document.getElementById("textoConsentimento").textContent = TEXTO_CONSENTIMENTO;
+
+  /* ── Identificação: silenciosa, só pelo link (?t=5582999998888&n=Maria) ── */
+  const params   = new URLSearchParams(location.search);
+  let   telefone = normalizarTelefone(params.get("t"));
+  const nome     = (params.get("n") || "").trim().slice(0, 80) || null;
+  const loja     = (params.get("l") || "").trim().slice(0, 40) || null;
+
+  if (telefone) {
+    const forte = document.createElement("strong");
+    forte.textContent = formatarTelefone(telefone);
+    $("linhaVinculo").append("Aceite vinculado ao WhatsApp ", forte, ". ");
+  } else {
+    // sem identificação não há como vincular o aceite a alguém
+    $("telaForm").hidden = true;
+    $("telaLinkInvalido").hidden = false;
+  }
+
+  /* ── Já respondeu neste aparelho? ── */
+  try {
+    const anterior = JSON.parse(localStorage.getItem("cp_aceite") || "null");
+    if (anterior?.quando) {
+      const dt = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(anterior.quando));
+      $("avisoAnterior").textContent =
+        `Você já registrou uma resposta neste aparelho em ${dt}. Se quiser, pode registrar de novo — vale sempre a mais recente.`;
+      $("avisoAnterior").hidden = false;
+    }
+  } catch { /* localStorage indisponível: segue o jogo */ }
+
+  /* ── Botões ── */
+  const REDUZ = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  $("btnAceito").addEventListener("click", (ev) => registrar("aceito", ev));
+  $("btnRecuso").addEventListener("click", (ev) => registrar("recusado", ev));
+
+  /* ── Aviso de Privacidade: abre em modal (art. 9º) ── */
+  const dlg = $("dlgAviso");
+  function abrirAviso(ev) {
+    if (ev) ev.preventDefault();
+    if (typeof dlg.showModal === "function") dlg.showModal();
+    else dlg.setAttribute("open", "");             // fallback: webview sem <dialog>
+  }
+  function fecharAviso() {
+    if (typeof dlg.close === "function" && dlg.open) dlg.close();
+    else dlg.removeAttribute("open");
+  }
+  $("linkAvisoForm")?.addEventListener("click", abrirAviso);
+  $("linkAvisoFooter")?.addEventListener("click", abrirAviso);
+  $("btnFecharAviso")?.addEventListener("click", fecharAviso);
+
+  async function registrar(resposta, ev) {
+    const botao = ev.currentTarget;
+    ondular(ev, botao);
+    if (!telefone) return;   // sem link válido os botões nem aparecem
+
+    travar(true, botao);
+    $("avisoErro").hidden = true;
+
+    try {
+      if (!fb) throw new Error("SDK do Firebase não carregou");
+
+      const registro = {
+        telefone,
+        resposta,                                   // "aceito" | "recusado"
+        textoConsentimento: TEXTO_CONSENTIMENTO,    // prova: o texto exato exibido
+        versaoTexto: VERSAO_TEXTO,
+        origem: "pagina-web",
+        urlOrigem: location.href.slice(0, 500),
+        userAgent: navigator.userAgent.slice(0, 400),
+        registradoEm: fb.serverTimestamp()          // carimbado pelo servidor Google
+      };
+      if (nome) registro.nome = nome;
+      if (loja) registro.loja = loja;
+      if (navigator.language) registro.idioma = navigator.language;
+
+      const ip = await obterIP();                   // melhor esforço, não bloqueia
+      if (ip) registro.ip = ip;
+
+      const ref = await fb.addDoc(fb.collection(fb.db, "aceites_marketing"), registro);
+      const protocolo = ref.id;
+
+      try {
+        localStorage.setItem("cp_aceite", JSON.stringify({
+          telefone, resposta, quando: Date.now(), protocolo
+        }));
+      } catch { /* sem localStorage, sem drama */ }
+
+      mostrarSucesso(resposta, nome, protocolo);
+    } catch (e) {
+      console.error("Falha ao registrar aceite:", e);
+      $("avisoErro").hidden = false;
+      travar(false);
+    }
+  }
+
+  async function mostrarSucesso(resposta, nome, protocolo) {
+    const quando = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short" })
+      .format(new Date());
+    const aceitou = resposta === "aceito";
+
+    $("seloCheca").hidden = !aceitou;
+    $("seloTraco").hidden = aceitou;
+
+    $("sucessoTitulo").textContent = aceitou ? "Aceite registrado!" : "Preferência registrada";
+    $("sucessoTexto").textContent = aceitou
+      ? `Obrigado${nome ? ", " + nome.split(" ")[0] : ""}! A partir de agora você recebe nossas novidades, promoções e cupons pelo WhatsApp. Registrado em ${quando}.`
+      : `Tudo bem${nome ? ", " + nome.split(" ")[0] : ""}! Você não vai receber nossas promoções. Se mudar de ideia, é só falar com a gente. Registrado em ${quando}.`;
+    $("sucessoProtocolo").textContent = "Protocolo " + protocolo;
+
+    const form = $("telaForm");
+    if (!REDUZ) {
+      form.classList.add("saindo");
+      await new Promise((r) => setTimeout(r, 360));
+      form.classList.remove("saindo");
+    }
+    form.hidden = true;
+    $("telaSucesso").hidden = false;
+    window.scrollTo({ top: 0, behavior: REDUZ ? "auto" : "smooth" });
+    setTimeout(brilharMonograma, 500);
+  }
+
+  function travar(sim, botao) {
+    for (const id of ["btnAceito", "btnRecuso"]) {
+      $(id).disabled = sim;
+      $(id).classList.toggle("enviando", sim && $(id) === botao);
+    }
+  }
+
+  /* ── Microanimações ── */
+  function ondular(ev, botao) {
+    if (REDUZ) return;
+    const r = botao.getBoundingClientRect();
+    const onda = document.createElement("span");
+    onda.className = "onda";
+    const diam = Math.max(r.width, r.height) * 2.1;
+    onda.style.width = onda.style.height = diam + "px";
+    const teclado = !ev.clientX && !ev.clientY;
+    onda.style.left = (teclado ? r.width / 2 : ev.clientX - r.left) + "px";
+    onda.style.top  = (teclado ? r.height / 2 : ev.clientY - r.top) + "px";
+    botao.appendChild(onda);
+    onda.addEventListener("animationend", () => onda.remove());
+  }
+
+  function brilharMonograma() {
+    if (REDUZ) return;
+    document.querySelectorAll(".monograma animate").forEach((a) => {
+      try { a.beginElement(); } catch { /* sem SMIL: segue sem o brilho */ }
+    });
+  }
+
+  /* ── Utilitários ── */
+  function normalizarTelefone(v) {
+    const d = (v || "").replace(/\D/g, "");
+    if (/^55\d{10,11}$/.test(d)) return d;          // já veio com 55
+    if (/^\d{10,11}$/.test(d))   return "55" + d;   // DDD + número
+    return null;
+  }
+
+  function formatarTelefone(t) {                    // t = 55 + DDD + número
+    const s = t.slice(2), ddd = s.slice(0, 2), n = s.slice(2);
+    return n.length === 9
+      ? `(${ddd}) ${n[0]} ${n.slice(1, 5)}-${n.slice(5)}`
+      : `(${ddd}) ${n.slice(0, 4)}-${n.slice(4)}`;
+  }
+
+  async function obterIP() {
+    try {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 3000);
+      const r = await fetch("https://api.ipify.org?format=json", { signal: ctl.signal });
+      clearTimeout(t);
+      return (await r.json()).ip || null;
+    } catch { return null; }
+  }
+</script>
+</body>
+</html>

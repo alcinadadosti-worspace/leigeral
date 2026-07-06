@@ -1,0 +1,13 @@
+# Configurações locais do Claude Code
+.claude/
+
+# Cópia antiga do download — o arquivo canônico é index.html
+index (5).html
+
+# Documento interno (tem nome/CPF depois de preenchido) — NUNCA no deploy público
+TERMO-NOMEACAO-ENCARREGADO.md
+
+# Lixo de sistema
+Thumbs.db
+desktop.ini
+.DS_Store
