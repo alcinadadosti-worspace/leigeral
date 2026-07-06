@@ -36,16 +36,31 @@ service cloud.firestore {
           'telefone', 'resposta', 'textoConsentimento',
           'versaoTexto', 'origem', 'registradoEm'
         ])
-        // integridade dos campos
+        // integridade dos obrigatórios
         && request.resource.data.telefone is string
         && request.resource.data.telefone.matches('^55[0-9]{10,11}$')
         && request.resource.data.resposta in ['aceito', 'recusado']
         && request.resource.data.textoConsentimento is string
         && request.resource.data.textoConsentimento.size() <= 1000
         && request.resource.data.versaoTexto is string
+        && request.resource.data.versaoTexto.size() <= 40
         && request.resource.data.origem == 'pagina-web'
         // timestamp inforjável, carimbado pelo servidor do Google
-        && request.resource.data.registradoEm == request.time;
+        && request.resource.data.registradoEm == request.time
+        // opcionais: se vierem, precisam ser string dentro do limite
+        // (barra payloads gigantes / lixo no endpoint público)
+        && (!('nome' in request.resource.data)
+            || (request.resource.data.nome is string && request.resource.data.nome.size() <= 80))
+        && (!('loja' in request.resource.data)
+            || (request.resource.data.loja is string && request.resource.data.loja.size() <= 60))
+        && (!('urlOrigem' in request.resource.data)
+            || (request.resource.data.urlOrigem is string && request.resource.data.urlOrigem.size() <= 500))
+        && (!('userAgent' in request.resource.data)
+            || (request.resource.data.userAgent is string && request.resource.data.userAgent.size() <= 400))
+        && (!('idioma' in request.resource.data)
+            || (request.resource.data.idioma is string && request.resource.data.idioma.size() <= 20))
+        && (!('ip' in request.resource.data)
+            || (request.resource.data.ip is string && request.resource.data.ip.size() <= 45));
 
       // leitura: SÓ a conta admin autenticada (painel). Público nunca lê.
       allow read: if request.auth != null

@@ -203,17 +203,34 @@
   const nomeLoja = (v) => (LOJAS.find((x) => x.valor === v) || {}).nome || v || "—";
 
   const $ = (id) => document.getElementById(id);
-  const ADMIN_EMAIL = "alcinadadosti@gmail.com";   // conta Google autorizada a ler
+  const ADMIN_EMAIL = "alcinadadosti@gmail.com";        // conta Google autorizada a ler
+  const RECAPTCHA_SITE_KEY = "COLE_SITE_KEY_RECAPTCHA";  // mesma key do index.html (App Check)
 
   let auth, db, fx, provider;
   try {
     const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
-    const { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } =
+    const { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut,
+            setPersistence, browserSessionPersistence } =
       await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
     const { getFirestore, collection, getDocs, query, orderBy } =
       await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
     const app = initializeApp(firebaseConfig);
+
+    /* App Check: mesma proteção do index.html. Se você ligar o enforcement no
+       Firestore, a LEITURA do painel também passa a exigir o token do App Check. */
+    if (RECAPTCHA_SITE_KEY && RECAPTCHA_SITE_KEY !== "COLE_SITE_KEY_RECAPTCHA") {
+      try {
+        const { initializeAppCheck, ReCaptchaV3Provider } =
+          await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app-check.js");
+        initializeAppCheck(app, {
+          provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+          isTokenAutoRefreshEnabled: true
+        });
+      } catch (e) { console.error("App Check não inicializou:", e); }
+    }
+
     auth = getAuth(app);
+    await setPersistence(auth, browserSessionPersistence);   // logout ao fechar o navegador
     db = getFirestore(app);
     provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
