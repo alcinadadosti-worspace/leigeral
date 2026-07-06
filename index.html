@@ -348,6 +348,33 @@
   }
   .aviso-fechar:hover{ background: var(--verde-900); }
 
+  /* ── Campos do formulário ──────────────────────────────────────── */
+  .campos{ margin-top: 20px; display:flex; flex-direction:column; gap:12px; }
+  .campo{ display:flex; flex-direction:column; gap:5px; }
+  .campo-rotulo{
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: .02em;
+    color: var(--verde-900);
+  }
+  .campo-input{
+    width:100%;
+    padding: 13px 14px;
+    border: 1px solid var(--linha);
+    border-radius: 12px;
+    font: 400 15px var(--f-texto);
+    color: var(--tinta);
+    background: var(--branco);
+    transition: border-color .18s, box-shadow .18s;
+  }
+  .campo-input:focus{
+    outline: none;
+    border-color: var(--verde);
+    box-shadow: 0 0 0 3px rgba(112,150,127,.15);
+  }
+  .campo-input::placeholder{ color:#A9B4AD; }
+  .campo-input.invalido{ border-color: var(--erro); box-shadow: 0 0 0 3px rgba(169,80,44,.12); }
+
   /* ── Microanimações ────────────────────────────────────────────── */
   .onda{
     position:absolute;
@@ -410,12 +437,33 @@
   <!-- ═════════ TELA 1 · FORMULÁRIO ═════════ -->
   <section id="telaForm">
     <h1>Quer receber nossas novidades?</h1>
-    <p class="intro">A gente adoraria te enviar pelo WhatsApp as novidades, promoções e cupons exclusivos da loja. Como a LGPD — a Lei Geral de Proteção de Dados — exige o seu consentimento antes de qualquer envio, precisamos deste aceite. É um toque só.</p>
+    <p class="intro">A gente adoraria te enviar pelo WhatsApp as novidades, promoções e cupons exclusivos da loja. Como a LGPD — a Lei Geral de Proteção de Dados — exige o seu consentimento antes de qualquer envio, precisamos deste aceite. Confirme seus dados e toque em Sim ou Não.</p>
 
     <div id="avisoAnterior" class="banner banner-info" hidden></div>
 
 
     <div class="consentimento" id="textoConsentimento"><!-- preenchido via JS: exibido = gravado --></div>
+
+    <div class="campos">
+      <label class="campo">
+        <span class="campo-rotulo">Seu WhatsApp (com DDD)</span>
+        <input id="inpTelefone" class="campo-input" type="tel" inputmode="numeric"
+               autocomplete="tel" placeholder="(82) 9 9999-9999" maxlength="20">
+      </label>
+      <label class="campo">
+        <span class="campo-rotulo">Seu nome</span>
+        <input id="inpNome" class="campo-input" type="text" autocomplete="name"
+               placeholder="Como você se chama" maxlength="80">
+      </label>
+      <label class="campo">
+        <span class="campo-rotulo">Qual loja você visitou?</span>
+        <select id="inpLoja" class="campo-input">
+          <option value="" disabled selected>Selecione a loja</option>
+        </select>
+      </label>
+    </div>
+
+    <div id="avisoCampos" class="banner banner-erro" hidden></div>
 
     <div id="avisoErro" class="banner banner-erro" hidden>
       Não conseguimos registrar agora. Verifica sua conexão e tenta de novo — se continuar, fala com a gente no WhatsApp.
@@ -426,7 +474,7 @@
       <button type="button" class="btn btn-secundario" id="btnRecuso">Não quero receber</button>
     </div>
 
-    <p class="letra-miuda"><span id="linhaVinculo"></span>Registramos sua escolha com data e hora. Mudou de ideia depois? É só responder <strong>SAIR</strong> no WhatsApp.</p>
+    <p class="letra-miuda">Registramos sua escolha com data e hora. Mudou de ideia depois? É só responder <strong>SAIR</strong> no WhatsApp.</p>
 
     <div style="text-align:center">
       <button type="button" class="link-aviso" id="linkAvisoForm">Aviso de Privacidade e seus direitos</button>
@@ -450,12 +498,6 @@
     <p id="sucessoTexto"></p>
     <span class="protocolo" id="sucessoProtocolo"></span>
     <p style="margin-top:18px; font-size:13px;">Pode fechar esta página. 💚</p>
-  </section>
-
-  <!-- ═════════ TELA 3 · LINK SEM IDENTIFICAÇÃO ═════════ -->
-  <section id="telaLinkInvalido" class="sucesso" hidden>
-    <h2>Este aceite é pessoal</h2>
-    <p>Pra vincular a resposta ao seu WhatsApp, abra pelo link que enviamos na nossa mensagem. Se precisar, é só pedir o link de novo por lá. 💚</p>
   </section>
 
 </main>
@@ -539,6 +581,21 @@
     "quiser, respondendo SAIR a qualquer momento, e que meus dados serão usados " +
     "apenas para essa finalidade, conforme a Lei nº 13.709/2018 (LGPD).";
   const VERSAO_TEXTO = "v2-2026-07";
+
+  /* As 8 lojas do grupo. `valor` é o que fica GRAVADO no registro
+     (minúsculo, sem espaço nem acento — combina com o ?l= dos links);
+     `nome` é o rótulo que a cliente vê no menu. A ordem aqui é a ordem
+     que aparece na tela. Para incluir/renomear loja, edite esta lista. */
+  const LOJAS = [
+    { valor: "espaco-revendedor-penedo",   nome: "Espaço do Revendedor Penedo" },
+    { valor: "espaco-revendedor-palmeira", nome: "Espaço do Revendedor Palmeira dos Índios" },
+    { valor: "loja-palmeira",             nome: "Loja Palmeira dos Índios" },
+    { valor: "loja-teotonio-vilela",      nome: "Loja Teotônio Vilela" },
+    { valor: "loja-coruripe",             nome: "Loja Coruripe" },
+    { valor: "loja-palmeira-sustentavel", nome: "Loja Palmeira Sustentável" },
+    { valor: "loja-sao-sebastiao",        nome: "Loja São Sebastião" },
+    { valor: "loja-penedo",               nome: "Loja Penedo" }
+  ];
   /* ══════════════════════════════════════════════ */
 
   /* Carrega o SDK do Firebase por import() dinâmico dentro de try/catch:
@@ -574,21 +631,30 @@
   const $ = (id) => document.getElementById(id);
   document.getElementById("textoConsentimento").textContent = TEXTO_CONSENTIMENTO;
 
-  /* ── Identificação: silenciosa, só pelo link (?t=5582999998888&n=Maria) ── */
-  const params   = new URLSearchParams(location.search);
-  let   telefone = normalizarTelefone(params.get("t"));
-  const nome     = (params.get("n") || "").trim().slice(0, 80) || null;
-  const loja     = (params.get("l") || "").trim().slice(0, 40) || null;
+  /* ── Formulário: monta o menu de lojas e pré-preenche pelo link (?t=&n=&l=) ── */
+  const params      = new URLSearchParams(location.search);
+  const inpTelefone = $("inpTelefone");
+  const inpNome     = $("inpNome");
+  const inpLoja     = $("inpLoja");
 
-  if (telefone) {
-    const forte = document.createElement("strong");
-    forte.textContent = formatarTelefone(telefone);
-    $("linhaVinculo").append("Aceite vinculado ao WhatsApp ", forte, ". ");
-  } else {
-    // sem identificação não há como vincular o aceite a alguém
-    $("telaForm").hidden = true;
-    $("telaLinkInvalido").hidden = false;
+  for (const item of LOJAS) {                        // popula o menu de lojas
+    const opt = document.createElement("option");
+    opt.value = item.valor;
+    opt.textContent = item.nome;
+    inpLoja.append(opt);
   }
+
+  const tParam = normalizarTelefone(params.get("t"));           // pré-preenche se veio no link
+  if (tParam) inpTelefone.value = formatarTelefone(tParam);
+  const nParam = (params.get("n") || "").trim().slice(0, 80);
+  if (nParam) inpNome.value = nParam;
+  const lParam = (params.get("l") || "").trim().slice(0, 40);
+  if (lParam && LOJAS.some((x) => x.valor === lParam)) inpLoja.value = lParam;
+
+  // limpa a marcação de erro assim que a pessoa edita o campo
+  inpTelefone.addEventListener("input", () => marcar(inpTelefone, false));
+  inpNome.addEventListener("input", () => marcar(inpNome, false));
+  inpLoja.addEventListener("change", () => marcar(inpLoja, false));
 
   /* ── Já respondeu neste aparelho? ── */
   try {
@@ -622,10 +688,27 @@
   $("linkAvisoFooter")?.addEventListener("click", abrirAviso);
   $("btnFecharAviso")?.addEventListener("click", fecharAviso);
 
+  function marcar(campo, invalido) { campo.classList.toggle("invalido", invalido); }
+
   async function registrar(resposta, ev) {
     const botao = ev.currentTarget;
     ondular(ev, botao);
-    if (!telefone) return;   // sem link válido os botões nem aparecem
+
+    /* valida os campos digitados */
+    const telefone = normalizarTelefone(inpTelefone.value);
+    const nome     = inpNome.value.trim().slice(0, 80);
+    const loja     = inpLoja.value;
+
+    const faltando = [];
+    marcar(inpTelefone, !telefone); if (!telefone) faltando.push("um WhatsApp válido com DDD");
+    marcar(inpNome, !nome);         if (!nome)     faltando.push("seu nome");
+    marcar(inpLoja, !loja);         if (!loja)     faltando.push("a loja que você visitou");
+    if (faltando.length) {
+      $("avisoCampos").textContent = "Preencha " + faltando.join(", ") + " para continuar.";
+      $("avisoCampos").hidden = false;
+      return;
+    }
+    $("avisoCampos").hidden = true;
 
     travar(true, botao);
     $("avisoErro").hidden = true;
@@ -635,6 +718,8 @@
 
       const registro = {
         telefone,
+        nome,
+        loja,
         resposta,                                   // "aceito" | "recusado"
         textoConsentimento: TEXTO_CONSENTIMENTO,    // prova: o texto exato exibido
         versaoTexto: VERSAO_TEXTO,
@@ -643,8 +728,6 @@
         userAgent: navigator.userAgent.slice(0, 400),
         registradoEm: fb.serverTimestamp()          // carimbado pelo servidor Google
       };
-      if (nome) registro.nome = nome;
-      if (loja) registro.loja = loja;
       if (navigator.language) registro.idioma = navigator.language;
 
       const ip = await obterIP();                   // melhor esforço, não bloqueia
