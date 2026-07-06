@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  PAINEL DE ACEITES · GRUPO ALCINA MARIA  (acesso restrito)
+  ═══════════════════════════════════════════════════════════════════
+  Página protegida por login (Firebase Authentication). Só um admin
+  autenticado consegue LER a coleção aceites_marketing; o público só
+  GRAVA (ver firestore.rules). Lista, filtra por loja/resposta e
+  exporta CSV.
+
+  PARA FUNCIONAR (feito uma vez no console do Firebase):
+  1. Authentication → "Começar" → aba "Sign-in method" → ativar
+     "E-mail/senha".
+  2. Authentication → aba "Users" → "Adicionar usuário" →
+     e-mail: alcinadadosti@gmail.com  + uma senha forte.
+  3. firestore.rules → liberar leitura só pra esse e-mail (já ajustado
+     no arquivo firestore.rules do repo) → Publicar.
+
+  A firebaseConfig aqui é a mesma do index.html (pública por design;
+  a segurança está nas rules). Se trocar o projeto, atualize os dois.
+  ═══════════════════════════════════════════════════════════════════
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#70967F">
+<title>Painel de Aceites · Grupo Alcina Maria</title>
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%2370967F"/><text x="32" y="42" font-family="Georgia,serif" font-size="26" fill="%23E9D5A8" text-anchor="middle" letter-spacing="1">AM</text></svg>'>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --verde:#70967F; --verde-700:#5C8069; --verde-900:#3E5A4B; --verde-050:#EEF4F0;
+    --dour-medio:#C9A876; --dour-escuro:#A9803F;
+    --branco:#FFFFFF; --tinta:#2E3A33; --tinta-suave:#5D6B63; --linha:#D7E0DA;
+    --erro:#A9502C; --ok:#3E7D5A;
+    --f-titulo:'Marcellus',Georgia,serif; --f-texto:'Jost','Segoe UI',sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ min-height:100%; }
+  body{ font-family:var(--f-texto); color:var(--tinta); background:var(--verde-050); }
+
+  /* ── Login ─────────────────────────────────────────── */
+  .login-wrap{ min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .login-card{
+    background:var(--branco); width:100%; max-width:380px; border-radius:20px;
+    box-shadow:0 20px 50px rgba(31,48,39,.18); padding:34px 28px; text-align:center;
+  }
+  .login-card .wm{
+    font-family:var(--f-titulo); font-size:14px; letter-spacing:.36em; text-indent:.36em;
+    text-transform:uppercase; color:var(--verde-900); margin-bottom:4px;
+  }
+  .login-card h1{ font-family:var(--f-titulo); font-weight:400; font-size:22px; color:var(--verde-900); margin:10px 0 20px; }
+  .campo{ text-align:left; margin-bottom:12px; }
+  .campo label{ display:block; font-size:12.5px; font-weight:500; color:var(--verde-900); margin-bottom:5px; }
+  .campo input{
+    width:100%; padding:12px 14px; border:1px solid var(--linha); border-radius:11px;
+    font:400 15px var(--f-texto); color:var(--tinta);
+  }
+  .campo input:focus{ outline:none; border-color:var(--verde); box-shadow:0 0 0 3px rgba(112,150,127,.15); }
+  .btn{
+    width:100%; padding:13px; border:0; border-radius:12px; background:var(--verde-700);
+    color:#fff; font:500 15px var(--f-texto); cursor:pointer; transition:background .18s;
+  }
+  .btn:hover{ background:var(--verde-900); }
+  .btn[disabled]{ opacity:.6; cursor:default; }
+  .erro-login{ margin-top:14px; font-size:13px; color:var(--erro); min-height:18px; }
+
+  /* ── Painel ────────────────────────────────────────── */
+  .topo{
+    background:var(--verde); color:#fff; padding:16px 20px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  .topo .wm{ font-family:var(--f-titulo); letter-spacing:.22em; text-transform:uppercase; font-size:14px; }
+  .topo .cresce{ flex:1; }
+  .topo button{
+    background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.35);
+    border-radius:9px; padding:8px 13px; font:500 13px var(--f-texto); cursor:pointer;
+  }
+  .topo button:hover{ background:rgba(255,255,255,.28); }
+
+  .barra{
+    display:flex; gap:12px; flex-wrap:wrap; align-items:end;
+    padding:16px 20px; background:var(--branco); border-bottom:1px solid var(--linha);
+  }
+  .barra .grupo{ display:flex; flex-direction:column; gap:4px; }
+  .barra label{ font-size:11.5px; font-weight:500; color:var(--tinta-suave); }
+  .barra select{
+    padding:9px 12px; border:1px solid var(--linha); border-radius:10px;
+    font:400 14px var(--f-texto); color:var(--tinta); background:#fff;
+  }
+  .barra .resumo{ margin-left:auto; align-self:center; font-size:14px; color:var(--verde-900); font-weight:500; }
+  .btn-csv{ background:var(--dour-escuro); color:#fff; border:0; border-radius:10px; padding:10px 16px; font:500 14px var(--f-texto); cursor:pointer; }
+  .btn-csv:hover{ background:#8f6a34; }
+
+  .tabela-wrap{ padding:16px 20px 40px; overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 6px 18px rgba(31,48,39,.06); }
+  th,td{ text-align:left; padding:11px 13px; font-size:13px; border-bottom:1px solid var(--linha); vertical-align:top; }
+  th{ background:var(--verde-050); color:var(--verde-900); font-weight:600; font-size:12px; letter-spacing:.02em; white-space:nowrap; }
+  tr.linha{ cursor:pointer; }
+  tr.linha:hover{ background:#FBFCFB; }
+  .pill{ display:inline-block; padding:3px 9px; border-radius:999px; font-size:11.5px; font-weight:600; white-space:nowrap; }
+  .pill-ok{ background:#E7F1EB; color:var(--ok); }
+  .pill-no{ background:#F6ECE6; color:var(--erro); }
+  td.telefone{ font-variant-numeric:tabular-nums; white-space:nowrap; }
+  td.dt{ white-space:nowrap; }
+  .toggle-det{ color:var(--dour-escuro); font-size:11.5px; }
+
+  tr.detalhe td{ background:#FAFBF9; }
+  .det-grid{ display:grid; grid-template-columns:150px 1fr; gap:6px 14px; font-size:12.5px; }
+  .det-grid dt{ color:var(--tinta-suave); font-weight:500; }
+  .det-grid dd{ color:var(--tinta); word-break:break-word; }
+  .det-consent{ margin-top:8px; padding:10px 12px; background:var(--verde-050); border-left:3px solid var(--dour-medio); border-radius:0 10px 10px 0; font-size:12.5px; line-height:1.6; color:var(--tinta-suave); }
+
+  .vazio{ padding:40px; text-align:center; color:var(--tinta-suave); font-size:14px; }
+  [hidden]{ display:none !important; }
+</style>
+</head>
+<body>
+
+<!-- ═════════ LOGIN ═════════ -->
+<div id="telaLogin" class="login-wrap">
+  <div class="login-card">
+    <div class="wm">Grupo Alcina Maria</div>
+    <h1>Painel de Aceites</h1>
+    <p style="font-size:13.5px;color:var(--tinta-suave);margin-bottom:20px;line-height:1.6">
+      Acesso restrito. Entre com a conta Google autorizada.
+    </p>
+    <button type="button" class="btn" id="btnEntrar">Entrar com Google</button>
+    <div class="erro-login" id="erroLogin"></div>
+  </div>
+</div>
+
+<!-- ═════════ PAINEL ═════════ -->
+<div id="telaPainel" hidden>
+  <div class="topo">
+    <span class="wm">Aceites LGPD</span>
+    <span class="cresce"></span>
+    <span id="usuarioLogado" style="font-size:13px;opacity:.9"></span>
+    <button id="btnSair" type="button">Sair</button>
+  </div>
+
+  <div class="barra">
+    <div class="grupo">
+      <label for="filtroLoja">Loja</label>
+      <select id="filtroLoja"><option value="">Todas as lojas</option></select>
+    </div>
+    <div class="grupo">
+      <label for="filtroResposta">Resposta</label>
+      <select id="filtroResposta">
+        <option value="">Todas</option>
+        <option value="aceito">Aceito</option>
+        <option value="recusado">Recusado</option>
+      </select>
+    </div>
+    <div class="grupo">
+      <label>&nbsp;</label>
+      <button class="btn-csv" id="btnCsv" type="button">Exportar CSV</button>
+    </div>
+    <div class="resumo" id="resumo"></div>
+  </div>
+
+  <div class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Data / hora</th><th>Nome</th><th>Telefone</th><th>Loja</th>
+          <th>Resposta</th><th>IP</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="corpoTabela"></tbody>
+    </table>
+    <div id="vazio" class="vazio" hidden>Nenhum aceite encontrado com esse filtro.</div>
+  </div>
+</div>
+
+<script type="module">
+  /* Mesma config do index.html (pública por design). */
+  const firebaseConfig = {
+    apiKey:            "AIzaSyD47A_jx15WFjlHwCab0VFGrCQM3ynnrE0",
+    authDomain:        "aceite-lgpd.firebaseapp.com",
+    projectId:         "aceite-lgpd",
+    storageBucket:     "aceite-lgpd.firebasestorage.app",
+    messagingSenderId: "125328549828",
+    appId:             "1:125328549828:web:557ea446c57c890cafa691"
+  };
+
+  /* Mesma lista do index.html — manter em sincronia (valor gravado → nome exibido). */
+  const LOJAS = [
+    { valor: "espaco-revendedor-penedo",   nome: "Espaço do Revendedor Penedo" },
+    { valor: "espaco-revendedor-palmeira", nome: "Espaço do Revendedor Palmeira dos Índios" },
+    { valor: "loja-palmeira",              nome: "Loja Palmeira dos Índios" },
+    { valor: "loja-teotonio-vilela",       nome: "Loja Teotônio Vilela" },
+    { valor: "loja-coruripe",              nome: "Loja Coruripe" },
+    { valor: "loja-palmeira-sustentavel",  nome: "Loja Palmeira Sustentável" },
+    { valor: "loja-sao-sebastiao",         nome: "Loja São Sebastião" },
+    { valor: "loja-penedo",                nome: "Loja Penedo" }
+  ];
+  const nomeLoja = (v) => (LOJAS.find((x) => x.valor === v) || {}).nome || v || "—";
+
+  const $ = (id) => document.getElementById(id);
+  const ADMIN_EMAIL = "alcinadadosti@gmail.com";   // conta Google autorizada a ler
+
+  let auth, db, fx, provider;
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js");
+    const { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } =
+      await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+    const { getFirestore, collection, getDocs, query, orderBy } =
+      await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    fx = { signInWithPopup, onAuthStateChanged, signOut, collection, getDocs, query, orderBy };
+  } catch (e) {
+    $("erroLogin").textContent = "Não foi possível carregar o Firebase. Verifique a conexão.";
+    console.error(e);
+  }
+
+  /* popula filtro de loja */
+  for (const l of LOJAS) {
+    const o = document.createElement("option");
+    o.value = l.valor; o.textContent = l.nome; $("filtroLoja").append(o);
+  }
+
+  let TODOS = [];   // cache dos aceites carregados
+
+  if (fx) {
+    fx.onAuthStateChanged(auth, (user) => {
+      if (user && user.email === ADMIN_EMAIL) {
+        $("telaLogin").hidden = true;
+        $("telaPainel").hidden = false;
+        $("usuarioLogado").textContent = user.email || "";
+        carregar();
+      } else if (user) {
+        // logou com uma conta Google que não é a autorizada
+        $("erroLogin").textContent = "A conta " + (user.email || "?") + " não tem acesso a este painel.";
+        fx.signOut(auth);
+      } else {
+        $("telaPainel").hidden = true;
+        $("telaLogin").hidden = false;
+      }
+    });
+  }
+
+  $("btnEntrar").addEventListener("click", async () => {
+    if (!fx) return;
+    $("erroLogin").textContent = "";
+    $("btnEntrar").disabled = true;
+    try {
+      await fx.signInWithPopup(auth, provider);
+      // onAuthStateChanged cuida de mostrar o painel
+    } catch (e) {
+      if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") {
+        $("erroLogin").textContent = "";   // usuário fechou; sem erro
+      } else {
+        const msg = {
+          "auth/popup-blocked": "O navegador bloqueou a janela. Libere popups pra este site e tente de novo.",
+          "auth/operation-not-allowed": "Ative o login com Google no Firebase Authentication.",
+          "auth/unauthorized-domain": "Domínio não autorizado. Adicione aceite.onrender.com em Authentication → Settings → Authorized domains."
+        }[e.code] || ("Falha ao entrar: " + (e.code || e.message));
+        $("erroLogin").textContent = msg;
+      }
+    } finally {
+      $("btnEntrar").disabled = false;
+    }
+  });
+
+  $("btnSair").addEventListener("click", () => fx && fx.signOut(auth));
+  $("filtroLoja").addEventListener("change", render);
+  $("filtroResposta").addEventListener("change", render);
+  $("btnCsv").addEventListener("click", exportarCSV);
+
+  async function carregar() {
+    try {
+      const q = fx.query(fx.collection(db, "aceites_marketing"), fx.orderBy("registradoEm", "desc"));
+      const snap = await fx.getDocs(q);
+      TODOS = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      render();
+    } catch (e) {
+      console.error("Falha ao carregar aceites:", e);
+      $("corpoTabela").innerHTML = "";
+      $("vazio").hidden = false;
+      $("vazio").textContent = "Não foi possível ler os aceites. Confirme que as regras liberam leitura pro seu login.";
+    }
+  }
+
+  function filtrados() {
+    const fl = $("filtroLoja").value, fr = $("filtroResposta").value;
+    return TODOS.filter((a) => (!fl || a.loja === fl) && (!fr || a.resposta === fr));
+  }
+
+  function fmtData(ts) {
+    try {
+      const d = ts && ts.toDate ? ts.toDate() : null;
+      return d ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(d) : "—";
+    } catch { return "—"; }
+  }
+
+  function render() {
+    const lista = filtrados();
+    const corpo = $("corpoTabela");
+    corpo.innerHTML = "";
+    $("vazio").hidden = lista.length > 0;
+    $("resumo").textContent = lista.length + " de " + TODOS.length + " aceite(s)";
+
+    for (const a of lista) {
+      const aceitou = a.resposta === "aceito";
+      const tr = document.createElement("tr");
+      tr.className = "linha";
+      const td = (html, cls) => { const c = document.createElement("td"); if (cls) c.className = cls; c.innerHTML = html; return c; };
+      tr.append(
+        td(esc(fmtData(a.registradoEm)), "dt"),
+        td(esc(a.nome || "—")),
+        td(esc(a.telefone || "—"), "telefone"),
+        td(esc(nomeLoja(a.loja))),
+        td('<span class="pill ' + (aceitou ? "pill-ok" : "pill-no") + '">' + (aceitou ? "Aceito" : "Recusado") + "</span>"),
+        td(esc(a.ip || "—")),
+        td('<span class="toggle-det">detalhes ▾</span>')
+      );
+
+      const trDet = document.createElement("tr");
+      trDet.className = "detalhe";
+      trDet.hidden = true;
+      const tdDet = document.createElement("td");
+      tdDet.colSpan = 7;
+      tdDet.innerHTML =
+        '<dl class="det-grid">' +
+        linha("Protocolo", a.id) +
+        linha("Dispositivo", a.userAgent) +
+        linha("Idioma", a.idioma) +
+        linha("Versão do texto", a.versaoTexto) +
+        linha("URL de origem", a.urlOrigem) +
+        "</dl>" +
+        '<div class="det-consent"><strong>Consentimento exibido e registrado:</strong><br>' +
+        esc(a.textoConsentimento || "—") + "</div>";
+      trDet.append(tdDet);
+
+      tr.addEventListener("click", () => { trDet.hidden = !trDet.hidden; });
+      corpo.append(tr, trDet);
+    }
+  }
+
+  function linha(rot, val) {
+    return "<dt>" + esc(rot) + "</dt><dd>" + esc(val || "—") + "</dd>";
+  }
+
+  function esc(v) {
+    return String(v == null ? "" : v)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  /* ── Exportação CSV (separador ; e BOM, pra abrir certo no Excel PT-BR) ── */
+  function exportarCSV() {
+    const lista = filtrados();
+    if (!lista.length) return;
+    const cols = [
+      ["Protocolo", (a) => a.id],
+      ["DataHora", (a) => fmtData(a.registradoEm)],
+      ["Nome", (a) => a.nome],
+      ["Telefone", (a) => a.telefone],
+      ["Loja", (a) => nomeLoja(a.loja)],
+      ["Resposta", (a) => a.resposta],
+      ["IP", (a) => a.ip],
+      ["Idioma", (a) => a.idioma],
+      ["Dispositivo", (a) => a.userAgent],
+      ["VersaoTexto", (a) => a.versaoTexto],
+      ["UrlOrigem", (a) => a.urlOrigem],
+      ["TextoConsentimento", (a) => a.textoConsentimento]
+    ];
+    const c = (v) => {
+      v = String(v == null ? "" : v);
+      return /[";\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    };
+    const linhas = [cols.map((x) => x[0]).join(";")];
+    for (const a of lista) linhas.push(cols.map((x) => c(x[1](a))).join(";"));
+    const csv = "﻿" + linhas.join("\r\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const stamp = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+      .format(new Date()).replace(/\//g, "-");
+    const a = document.createElement("a");
+    a.href = url; a.download = "aceites-" + stamp + ".csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+</script>
+</body>
+</html>

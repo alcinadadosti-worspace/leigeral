@@ -47,8 +47,11 @@ service cloud.firestore {
         // timestamp inforjável, carimbado pelo servidor do Google
         && request.resource.data.registradoEm == request.time;
 
-      // leitura / edição / exclusão pelo cliente: proibidas
-      allow read, update, delete: if false;
+      // leitura: SÓ a conta admin autenticada (painel). Público nunca lê.
+      allow read: if request.auth != null
+                  && request.auth.token.email == 'alcinadadosti@gmail.com';
+      // edição / exclusão: ninguém pelo cliente
+      allow update, delete: if false;
     }
 
     // qualquer outra coleção: bloqueada
