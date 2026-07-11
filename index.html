@@ -288,6 +288,17 @@
     cursor: pointer;
   }
 
+  .link-inline{
+    background:none; border:0; padding:0;
+    font: inherit;
+    color: var(--verde-900);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+  #expressTexto{ line-height: 1.55; }
+  #painelExpress .acoes{ margin-top: 18px; }
+
   /* ── Aviso de Privacidade · modal (LGPD art. 9º / 18 / 41) ──────── */
   dialog.aviso{
     width: min(92vw, 460px);
@@ -436,7 +447,21 @@
 
   <!-- ═════════ TELA 1 · FORMULÁRIO ═════════ -->
   <section id="telaForm">
-    <h1>Quer receber nossas novidades?</h1>
+    <h1 id="tituloForm">Quer receber nossas novidades?</h1>
+    <!-- Painel expresso: quem já aceitou neste aparelho e quer cancelar
+         não repreenche nada — só confirma a nova resposta. -->
+    <div id="painelExpress" class="express" hidden>
+      <p id="expressTexto"></p>
+      <div class="acoes">
+        <button type="button" class="btn btn-secundario" id="btnCancelarExpress">Não quero mais receber</button>
+      </div>
+      <div id="avisoErroExpress" class="banner banner-erro" hidden>
+        Não conseguimos registrar agora. Verifica sua conexão e tenta de novo — se continuar, fala com a gente no WhatsApp.
+      </div>
+      <p class="letra-miuda">Não é você, ou quer usar outro número? <button type="button" class="link-inline" id="linkPreencherManual">Preencher manualmente</button>.</p>
+    </div>
+
+    <div id="fluxoNormal">
     <p class="intro">A gente adoraria te enviar pelo WhatsApp as novidades, promoções e cupons exclusivos da loja. Como a LGPD — a Lei Geral de Proteção de Dados — exige o seu consentimento antes de qualquer envio, precisamos deste aceite. Confirme seus dados e toque em Sim ou Não.</p>
 
     <div id="avisoAnterior" class="banner banner-info" hidden></div>
@@ -475,6 +500,7 @@
     </div>
 
     <p class="letra-miuda">Registramos sua escolha com data e hora. Mudou de ideia depois? É só abrir este link de novo e tocar em <strong>Não quero receber</strong>.</p>
+    </div><!-- /fluxoNormal -->
 
     <div style="text-align:center">
       <button type="button" class="link-aviso" id="linkAvisoForm">Aviso de Privacidade e seus direitos</button>
@@ -659,7 +685,11 @@
   /* ── Já respondeu neste aparelho? ── */
   try {
     const anterior = JSON.parse(localStorage.getItem("cp_aceite") || "null");
-    if (anterior?.quando) {
+    if (anterior?.quando && anterior.resposta === "aceito") {
+      // Já aceitou aqui → modo expresso: cancela sem repreencher os dados.
+      entrarModoExpress(anterior);
+    } else if (anterior?.quando) {
+      // Já respondeu (recusado) → mantém o formulário, só avisa.
       const dt = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(anterior.quando));
       $("avisoAnterior").textContent =
         `Você já registrou uma resposta neste aparelho em ${dt}. Se quiser, pode registrar de novo — vale sempre a mais recente.`;
@@ -710,16 +740,56 @@
     }
     $("avisoCampos").hidden = true;
 
+    await gravar({ resposta, telefone, nome, loja, botao, alvoErro: $("avisoErro") });
+  }
+
+  /* Cancelamento expresso: quem já aceitou NESTE aparelho reaproveita os
+     dados salvos (telefone/nome/loja) — não digita nada de novo. */
+  async function cancelarExpress(ev, anterior) {
+    const botao = ev.currentTarget;
+    ondular(ev, botao);
+    await gravar({
+      resposta: "recusado",
+      telefone: anterior.telefone,
+      nome:     anterior.nome || "",
+      loja:     anterior.loja || "",
+      botao,
+      alvoErro: $("avisoErroExpress"),
+    });
+  }
+
+  /* Coloca a tela no modo expresso: esconde o formulário e mostra só o
+     botão de cancelar, já que a pessoa já está cadastrada aqui. */
+  function entrarModoExpress(anterior) {
+    const dt = new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" })
+      .format(new Date(anterior.quando));
+    const primeiroNome = (anterior.nome || "").trim().split(" ")[0];
+    $("tituloForm").textContent = "Sua preferência";
+    $("expressTexto").innerHTML =
+      `${primeiroNome ? "Olá, " + primeiroNome + "! " : ""}Você já registrou o aceite neste aparelho em <strong>${dt}</strong>. ` +
+      "Se mudou de ideia, é só cancelar aqui embaixo — não precisa preencher nada de novo.";
+    $("fluxoNormal").hidden = true;
+    $("painelExpress").hidden = false;
+    $("btnCancelarExpress").addEventListener("click", (ev) => cancelarExpress(ev, anterior));
+    $("linkPreencherManual").addEventListener("click", () => {
+      $("painelExpress").hidden = true;
+      $("fluxoNormal").hidden = false;
+      $("tituloForm").textContent = "Quer receber nossas novidades?";
+    });
+  }
+
+  /* Núcleo compartilhado: monta o registro, grava no Firestore, guarda no
+     localStorage e mostra a tela de sucesso. Serve pro fluxo normal e pro
+     cancelamento expresso. */
+  async function gravar({ resposta, telefone, nome, loja, botao, alvoErro }) {
     travar(true, botao);
-    $("avisoErro").hidden = true;
+    if (alvoErro) alvoErro.hidden = true;
 
     try {
       if (!fb) throw new Error("SDK do Firebase não carregou");
 
       const registro = {
         telefone,
-        nome,
-        loja,
         resposta,                                   // "aceito" | "recusado"
         textoConsentimento: TEXTO_CONSENTIMENTO,    // prova: o texto exato exibido
         versaoTexto: VERSAO_TEXTO,
@@ -728,6 +798,8 @@
         userAgent: navigator.userAgent.slice(0, 400),
         registradoEm: fb.serverTimestamp()          // carimbado pelo servidor Google
       };
+      if (nome) registro.nome = nome;               // opcionais: só entram se existirem
+      if (loja) registro.loja = loja;
       if (navigator.language) registro.idioma = navigator.language;
 
       const ip = await obterIP();                   // melhor esforço, não bloqueia
@@ -738,14 +810,14 @@
 
       try {
         localStorage.setItem("cp_aceite", JSON.stringify({
-          telefone, resposta, quando: Date.now(), protocolo
+          telefone, nome, loja, resposta, quando: Date.now(), protocolo
         }));
       } catch { /* sem localStorage, sem drama */ }
 
       mostrarSucesso(resposta, nome, protocolo);
     } catch (e) {
       console.error("Falha ao registrar aceite:", e);
-      $("avisoErro").hidden = false;
+      if (alvoErro) alvoErro.hidden = false;
       travar(false);
     }
   }
@@ -777,9 +849,11 @@
   }
 
   function travar(sim, botao) {
-    for (const id of ["btnAceito", "btnRecuso"]) {
-      $(id).disabled = sim;
-      $(id).classList.toggle("enviando", sim && $(id) === botao);
+    for (const id of ["btnAceito", "btnRecuso", "btnCancelarExpress"]) {
+      const el = $(id);
+      if (!el) continue;
+      el.disabled = sim;
+      el.classList.toggle("enviando", sim && el === botao);
     }
   }
 
