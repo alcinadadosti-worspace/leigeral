@@ -43,6 +43,11 @@ const RESPONSAVEL_POR_LOJA = {
  * Útil pro encarregado de dados (DPO). Deixe [] se não quiser. */
 const SEMPRE_AVISAR = [];
 
+/* Fallback: recusa SEM loja identificada (ex.: cliente que aceitou ANTES de a
+ * loja passar a ser salva no aparelho, e depois cancelou pelo modo expresso)
+ * cai aqui — assim nenhuma recusa some sem avisar ninguém. */
+const FALLBACK_SEM_LOJA = ["U0895CZ8HU7"];
+
 // Rótulos "bonitos" das lojas (o doc guarda só o `valor`).
 const NOME_DA_LOJA = {
   "espaco-revendedor-penedo":   "Espaço do Revendedor Penedo",
@@ -113,18 +118,23 @@ exports.avisarRecusa = onDocumentCreated(
 
     const protocolo = event.params.protocolo;
     const loja = d.loja || "";
-    const nomeLoja = NOME_DA_LOJA[loja] || loja || "—";
+    const nomeLoja = NOME_DA_LOJA[loja] || loja || "— (não identificada)";
     const telefone = formatarTelefone(d.telefone);
     const quando = formatarQuando(d.registradoEm);
     const nome = d.nome || "—";
 
     // Destinatários = responsáveis da loja + quem sempre recebe (sem repetir).
-    const destinatarios = [
+    let destinatarios = [
       ...new Set([...(RESPONSAVEL_POR_LOJA[loja] || []), ...SEMPRE_AVISAR]),
     ];
 
+    // Recusa sem loja/responsável NÃO pode sumir — cai no fallback.
     if (destinatarios.length === 0) {
-      logger.warn("Recusa sem destinatário configurado", { loja, protocolo });
+      logger.warn("Recusa sem loja/responsável — indo pro fallback", { loja, protocolo });
+      destinatarios = [...new Set(FALLBACK_SEM_LOJA)];
+    }
+    if (destinatarios.length === 0) {
+      logger.error("Recusa sem destinatário e fallback vazio", { loja, protocolo });
       return;
     }
 
